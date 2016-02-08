@@ -34,7 +34,7 @@
 	exports.add = function add(DD_MODULES) {
 		DD_MODULES = (DD_MODULES || {});
 		DD_MODULES[MODULE_NAME] = {
-			type: null,
+			type: 'Package',
 			version: '0b',
 			namespaces: null,
 			dependencies: ['Doodad.Modules'],
@@ -44,15 +44,17 @@
 				"use strict";
 				
 				var doodad = root.Doodad,
-					modules = doodad.Modules;
+					modules = doodad.Modules,
+					files = [];
 				
 				var fromSource = root.getOptions().settings.fromSource;
 				
-				return modules.load(MODULE_NAME, (fromSource ? 'src/server/Server_Http_JsonRpc.js' : 'Server_Http_JsonRpc.min.js'), _options)
-					.then(function() {
-						return modules.load(MODULE_NAME, (fromSource ? 'src/server/NodeJs_Server_Http_JsonRpc.js' : 'NodeJs_Server_Http_JsonRpc.min.js'), _options);
-					});
+				files.push(
+					(fromSource ? 'src/server/Server_Http_JsonRpc.js' : 'Server_Http_JsonRpc.min.js'),
+					(fromSource ? 'src/server/NodeJs_Server_Http_JsonRpc.js' : 'NodeJs_Server_Http_JsonRpc.min.js')
+				);
 
+				return modules.load(MODULE_NAME, files, _options);
 			},
 		};
 		return DD_MODULES;
