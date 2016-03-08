@@ -61,7 +61,7 @@ Then load 'doodad-js-http_jsonrpc' and its dependencies :
         // your code here...
     };
     
-    namespaces.loadNamespaces(startup, false, null, modules);
+    namespaces.loadNamespaces(modules, startup);
 ```
 
 ## Example

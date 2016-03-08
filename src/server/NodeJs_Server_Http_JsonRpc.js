@@ -35,7 +35,7 @@
 		DD_MODULES = (DD_MODULES || {});
 		DD_MODULES['Doodad.NodeJs.Server.Http.JsonRpc'] = {
 			type: null,
-			version: '0d',
+			version: '0.3.0d',
 			namespaces: null,
 			dependencies: [
 				'Doodad.Types', 
@@ -43,7 +43,7 @@
 				'Doodad', 
 				{
 					name: 'Doodad.NodeJs.IO',
-					version: '0.2',
+					version: '0.4.0',
 				},
 				'Doodad.Server.Http.JsonRpc',
 			],
