@@ -35,23 +35,26 @@
 		DD_MODULES = (DD_MODULES || {});
 		DD_MODULES['Doodad.Server.Http.JsonRpc'] = {
 			type: null,
-			version: '0.2d',
+			version: '0.3.0d',
 			namespaces: null,
 			dependencies: [
 				'Doodad.Types', 
 				'Doodad.Tools', 
-				'Doodad', 
+				{
+					name: 'Doodad',
+					version: '2.0.0',
+				}, 
 				{
 					name: 'Doodad.IO',
-					version: '0.2',
+					version: '0.4.0',
 				}, 
 				{
 					name: 'Doodad.Server.Http',
-					version: '0.2',
+					version: '0.4.0',
 				},
 				{
 					name: 'Doodad.Server.Ipc',
-					version: '0.2',
+					version: '0.2.0',
 				},
 			],
 
@@ -113,7 +116,7 @@
 					
 					create: doodad.OVERRIDE(function create(httpRequest, server, method, /*optional*/args, /*optional*/session) {
 						this._super(server, method, args, session);
-						this.setAttributes({
+						types.setAttributes(this, {
 							httpRequest: httpRequest,
 							customData: {},
 						});
