@@ -35,18 +35,18 @@
 		DD_MODULES = (DD_MODULES || {});
 		DD_MODULES['Doodad.Server.Http.JsonRpc'] = {
 			type: null,
-			version: '0.3.0d',
+			version: '0.3.2a',
 			namespaces: null,
 			dependencies: [
 				'Doodad.Types', 
 				'Doodad.Tools', 
 				{
 					name: 'Doodad',
-					version: '2.0.0',
+					version: '2.2.0',
 				}, 
 				{
 					name: 'Doodad.IO',
-					version: '0.4.0',
+					version: '1.0.0',
 				}, 
 				{
 					name: 'Doodad.Server.Http',
@@ -355,8 +355,7 @@
 							
 						request.startBodyTransfer(new http.RequestCallback(request, this, function onBodyHandler(ev) {
 							ev.preventDefault();
-							const value = ev.data.valueOf();
-							if (value === io.EOF) {
+							if (ev.data.raw === io.EOF) {
 								try {
 									data = JSON.parse(data);
 								} catch(ex) {
@@ -372,6 +371,7 @@
 								this.isBatch = isBatch;
 								this.runNextCommand(request);
 							} else {
+								const value = ev.data.valueOf();
 								if (data.length + value.length > maxRequestLength) {
 									throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "Request exceed maximum permitted length.");
 								};
