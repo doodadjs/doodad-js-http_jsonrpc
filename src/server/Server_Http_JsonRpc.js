@@ -35,28 +35,9 @@
 		DD_MODULES = (DD_MODULES || {});
 		DD_MODULES['Doodad.Server.Http.JsonRpc'] = {
 			type: null,
-			version: '0.3.2a',
+			//! INSERT("version:'" + VERSION('doodad-js-http_jsonrpc') + "',")
 			namespaces: null,
-			dependencies: [
-				'Doodad.Types', 
-				'Doodad.Tools', 
-				{
-					name: 'Doodad',
-					version: '2.2.0',
-				}, 
-				{
-					name: 'Doodad.IO',
-					version: '1.0.0',
-				}, 
-				{
-					name: 'Doodad.Server.Http',
-					version: '0.4.0',
-				},
-				{
-					name: 'Doodad.Server.Ipc',
-					version: '0.2.0',
-				},
-			],
+			dependencies: null,
 
 			create: function create(root, /*optional*/_options) {
 				"use strict";

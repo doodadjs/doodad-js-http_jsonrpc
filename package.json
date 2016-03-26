@@ -1,6 +1,7 @@
 {
   "name": "doodad-js-http_jsonrpc",
-  "version": "0.3.2",
+  "version": "0.4.0",
+  "stage": "a",
   "description": "JSON-RPC for Doodad's HTTP server (alpha)",
   "homepage": "https://sourceforge.net/projects/doodad-js/",
   "main": "index.js",
