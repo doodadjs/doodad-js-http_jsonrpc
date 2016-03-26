@@ -1,6 +1,5 @@
-//! REPLACE_BY("// Copyright 2016 Claude Petit, licensed under Apache License version 2.0\n")
 // dOOdad - Object-oriented programming framework
-// File: NodeJs_Server_http_JsonRpc.js - Server tools extension for NodeJs
+// File: index.js - JSON-RPC over Http module startup file
 // Project home: https://sourceforge.net/projects/doodad-js/
 // Trunk: svn checkout svn://svn.code.sf.net/p/doodad-js/code/trunk doodad-js-code
 // Author: Claude Petit, Quebec city
@@ -21,7 +20,6 @@
 //	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //	See the License for the specific language governing permissions and
 //	limitations under the License.
-//! END_REPLACE()
 
 (function() {
 	var global = this;
@@ -31,57 +29,53 @@
 		module.exports = exports;
 	};
 	
+	var MODULE_NAME = 'doodad-js-http_jsonrpc';
+	
 	exports.add = function add(DD_MODULES) {
 		DD_MODULES = (DD_MODULES || {});
-		DD_MODULES['Doodad.NodeJs.Server.Http.JsonRpc'] = {
-			type: null,
+		DD_MODULES[MODULE_NAME] = {
+			type: 'Package',
 			//! INSERT("version:'" + VERSION('doodad-js-http_jsonrpc') + "',")
 			namespaces: null,
 			dependencies: [
-				'Doodad.Server.Http.JsonRpc',
+				{
+					name: 'doodad-js',
+					//! INSERT("version:'" + VERSION('doodad-js') + "',")
+				},
+				{
+					name: 'doodad-js-io',
+					//! INSERT("version:'" + VERSION('doodad-js-io') + "',")
+				},
+				{
+					name: 'doodad-js-http',
+					//! INSERT("version:'" + VERSION('doodad-js-http') + "',")
+				},
+				{
+					name: 'doodad-js-ipc',
+					//! INSERT("version:'" + VERSION('doodad-js-ipc') + "',")
+				},
 			],
-
+			
 			create: function create(root, /*optional*/_options) {
 				"use strict";
-
-				const doodad = root.Doodad,
-					types = doodad.Types,
-					tools = doodad.Tools,
-					server = doodad.Server,
-					http = server.Http,
-					httpJson = http.JsonRpc,
-					ipc = server.Ipc,
-					nodejs = doodad.NodeJs,
-					nodejsIO = nodejs.IO,
-					nodejsServer = nodejs.Server,
-					nodejsHttp = nodejsServer.Http,
-					nodejsJson = nodejsHttp.JsonRpc;
-
 				
-				//const __Internal__ = {
-				//};
-
-
-				nodejsJson.REGISTER(httpJson.Page.$extend(
-				{
-					$TYPE_NAME: 'Page',
-
-					createRequestStream: doodad.OVERRIDE(function createRequestStream(request) {
-						return new nodejsIO.TextInputStream(request.nodeJsRequest);
-					}),
-					
-					createResponseStream: doodad.OVERRIDE(function(request) {
-						return new nodejsIO.TextOutputStream(request.nodeJsResponse)			
-					}),
-				}));
-
+				var doodad = root.Doodad,
+					modules = doodad.Modules,
+					files = [];
 				
+				var fromSource = root.getOptions().settings.fromSource;
 				
-				//return function init(/*optional*/options) {
-				//};
+				files.push(
+					(fromSource ? 'src/server/Server_Http_JsonRpc.js' : 'Server_Http_JsonRpc.min.js'),
+					(fromSource ? 'src/server/NodeJs_Server_Http_JsonRpc.js' : 'NodeJs_Server_Http_JsonRpc.min.js')
+				);
+
+				return modules.load(MODULE_NAME, files, _options)
+					.then(function() {
+						// Returns nothing
+					});
 			},
 		};
-		
 		return DD_MODULES;
 	};
 	
