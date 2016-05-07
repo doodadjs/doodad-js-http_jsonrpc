@@ -334,11 +334,12 @@
 					execute_POST: doodad.OVERRIDE(function execute_POST(request) {
 						// http://www.jsonrpc.org/specification
 						// TODO: Run batch commands in parallel ?
+						// TODO: JSON Stream
 
 						const maxRequestLength = types.get(request.mapping, 'maxRequestLength', 32500); // NOTE: Use "Infinity" for no limit
 						let data = '';
 							
-						request.startBodyTransfer(new http.RequestCallback(request, this, function onBodyHandler(ev) {
+						request.startBodyTransfer({callbackObj: this, callback: function onBodyHandler(ev) {
 							ev.preventDefault();
 							if (ev.data.raw === io.EOF) {
 								try {
@@ -362,7 +363,7 @@
 								};
 								data += value;
 							};
-						}));
+						}});
 					}),
 				})));
 
