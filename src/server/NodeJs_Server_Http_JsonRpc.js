@@ -72,11 +72,11 @@
 					$TYPE_NAME: 'Page',
 
 					createRequestStream: doodad.OVERRIDE(function createRequestStream(request) {
-						return new nodejsIO.TextInputStream(request.nodeJsRequest);
+						return new nodejsIO.TextInputStream({nodeStream: request.nodeJsRequest});
 					}),
 					
 					createResponseStream: doodad.OVERRIDE(function(request) {
-						return new nodejsIO.TextOutputStream(request.nodeJsResponse)			
+						return new nodejsIO.TextOutputStream({nodeStream: request.nodeJsResponse});
 					}),
 				}));
 
