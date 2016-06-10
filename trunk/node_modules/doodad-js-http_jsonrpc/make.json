@@ -56,12 +56,6 @@
 			"client": false,
 			"server": true,
 			"browserify": false
-		},
-		{
-			"src": "server/NodeJs_Server_Http_JsonRpc.js",
-			"client": false,
-			"server": true,
-			"browserify": false
 		}
 	],
 	"tasks": {
