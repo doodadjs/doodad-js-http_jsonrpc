@@ -226,35 +226,33 @@
 					
 					sendResult: doodad.PROTECTED(function sendResult(request) {
 						const stream = request.getResponseStream({encoding: 'utf-8'});
-						if (stream) {
-							const commands = this.batchCommands;
-							let results = [];
+						const commands = this.batchCommands;
+						let results = [];
+							
+						for (let i = 0; i < commands.length; i++) {
+							const command = commands[i];
+						
+							const requestId = types.get(command, 'id'),
+								result = types.get(command, 'result');
 								
-							for (let i = 0; i < commands.length; i++) {
-								const command = commands[i];
-							
-								const requestId = types.get(command, 'id'),
-									result = types.get(command, 'result');
-									
-								if (!this.isNotification) {
-									results.push(this.parseResult(result, requestId));
-								};
+							if (!this.isNotification) {
+								results.push(this.parseResult(result, requestId));
 							};
-
-							if (!this.isBatch) {
-								results = results[0];
-							} else if (results.length === 0) {
-								// Server MUST NOT return an empty array. Server MUST return nothing.
-								results = null;
-							};
-							
-							if (results) {
-								results = JSON.stringify(results);
-								stream.write(results);
-							};
-							
-							request.end();
 						};
+
+						if (!this.isBatch) {
+							results = results[0];
+						} else if (results.length === 0) {
+							// Server MUST NOT return an empty array. Server MUST return nothing.
+							results = null;
+						};
+						
+						if (results) {
+							results = JSON.stringify(results);
+							stream.write(results);
+						};
+						
+						request.end();
 					}),
 
 					runNextCommand: doodad.PUBLIC(function runNextCommand(request, /*optional*/requestData) {
