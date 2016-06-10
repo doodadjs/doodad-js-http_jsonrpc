@@ -75,7 +75,7 @@
 					ServerError: -32000,       // -32000 to -32099 Reserved for implementation-defined server-errors.
 				};
 				
-				httpJson.Error = types.createErrorType('Error', ipc.Error, function _new(code, message, /*optional*/data) {
+				httpJson.Error = types.createErrorType('Error', ipc.Error, function _new(code, message, /*optional*/data, /*optional*/params) {
 					if (root.DD_ASSERT) {
 						root.DD_ASSERT(types.isInteger(code), "Invalid code.");
 						root.DD_ASSERT(types.isStringAndNotEmpty(message), "Invalid message.");
@@ -83,7 +83,7 @@
 					};
 					this.code = code;
 					this.data = data;
-					return ipc.Error.call(this, message);
+					return ipc.Error.call(this, message, params);
 				});
 				httpJson.Error.prototype.pack = function pack() {
 					return {
@@ -101,9 +101,10 @@
 					
 					create: doodad.OVERRIDE(function create(httpRequest, server, method, /*optional*/args, /*optional*/session) {
 						this._super(server, method, args, session);
+						
 						types.setAttributes(this, {
 							httpRequest: httpRequest,
-							customData: {},
+							data: {},
 						});
 					}),
 					
@@ -113,7 +114,7 @@
 								result = null;
 							};
 							this.server.batchCommands[this.server.currentCommand].result = result;
-							this.server.runNextCommand(this.httpRequest, this.customData);
+							this.server.runNextCommand(this.httpRequest, this.data);
 						} catch(ex) {
 							if (!(ex instanceof server.EndOfRequest)) {
 								this.httpRequest.respondWithError(ex);
@@ -128,7 +129,7 @@
 					}),
 				}));
 
-				httpJson.REGISTER(doodad.BASE(doodad.Object.$extend(
+				httpJson.REGISTER(doodad.Object.$extend(
 									httpMixIns.Page,
 									ipcInterfaces.IServer,
 				{
@@ -139,7 +140,7 @@
 					isBatch: doodad.PUBLIC(false),
 					
 					resolveService: doodad.PROTECTED(function resolveService(request) {
-						let service = request.mapping.service;
+						let service = request.route.service;
 
 						if (types.isString(service)) {
 							service = namespaces.getNamespace(service);
@@ -150,7 +151,7 @@
 						if (types.isType(service)) {
 							service = new service();
 							service = service.getInterface(ipcMixIns.Service);
-							request.mapping.service = service;
+							request.route.service = service;
 						};
 							
 						if (root.DD_ASSERT) {
@@ -160,19 +161,34 @@
 						return service;
 					}),
 					
-					addHeaders: doodad.PROTECTED(function addHeaders(request, result) {
-						request.addHeaders({
-							'Content-Length': result.length,
-							'Content-Type': 'application/json',
-							//'Content-Disposition': 'inline',
-							//'Last-Modified': dates.strftime('%a, %d %b %Y %H:%M:%S GMT', new Date(), __Internal__.enUSLocale, true), // ex.:   Fri, 10 Jul 2015 03:16:55 GMT
-						});
+					//addHeaders: doodad.PROTECTED(function addHeaders(request, result) {
+					addHeaders: doodad.PROTECTED(function addHeaders(request) {
+						const mimeTypes = request.parseAccept(['application/json']);
+						
+						if (mimeTypes.length) {
+							const mimeType = mimeTypes[0];
+
+							request.addHeaders({
+								//'Content-Length': result.length,
+								'Content-Type': mimeType.name,
+								//'Content-Disposition': 'inline',
+								//'Last-Modified': dates.strftime('%a, %d %b %Y %H:%M:%S GMT', new Date(), __Internal__.enUSLocale, true), // ex.:   Fri, 10 Jul 2015 03:16:55 GMT
+							});
+						} else {
+							request.respondWithStatus(types.HttpStatus.NotAcceptable, "Content refused by the client.");
+						};
 					}),
 					
 					parseResult: doodad.PROTECTED(function parseResult(result, requestId) {
 						if (types.isError(result)) {
 							if (result instanceof httpJson.Error) {
 								result = result.pack();
+							} else if (result instanceof ipc.InvalidRequest) {
+								result = {
+									code: httpJson.ErrorCodes.InvalidRequest, 
+									message: result.message,
+									data: doodad.PackedValue.$pack(result),
+								};
 							} else if (result instanceof ipc.MethodNotCallable) {
 								result = {
 									code: httpJson.ErrorCodes.MethodNotFound, 
@@ -209,34 +225,36 @@
 					}),
 					
 					sendResult: doodad.PROTECTED(function sendResult(request) {
-						const commands = this.batchCommands;
-						let results = [];
-							
-						for (let i = 0; i < commands.length; i++) {
-							const command = commands[i];
-						
-							const requestId = types.get(command, 'id'),
-								result = types.get(command, 'result');
+						const stream = request.getResponseStream({encoding: 'utf-8'});
+						if (stream) {
+							const commands = this.batchCommands;
+							let results = [];
 								
-							if (!this.isNotification) {
-								results.push(this.parseResult(result, requestId));
+							for (let i = 0; i < commands.length; i++) {
+								const command = commands[i];
+							
+								const requestId = types.get(command, 'id'),
+									result = types.get(command, 'result');
+									
+								if (!this.isNotification) {
+									results.push(this.parseResult(result, requestId));
+								};
 							};
-						};
 
-						if (!this.isBatch) {
-							results = results[0];
-						} else if (results.length === 0) {
-							// Server MUST NOT return an empty array. Server MUST return nothing.
-							results = null;
+							if (!this.isBatch) {
+								results = results[0];
+							} else if (results.length === 0) {
+								// Server MUST NOT return an empty array. Server MUST return nothing.
+								results = null;
+							};
+							
+							if (results) {
+								results = JSON.stringify(results);
+								stream.write(results);
+							};
+							
+							request.end();
 						};
-						
-						if (results) {
-							results = JSON.stringify(results);
-							this.addHeaders(request, results);
-							request.getResponseStream().write(results);
-						};
-						
-						request.end();
 					}),
 
 					runNextCommand: doodad.PUBLIC(function runNextCommand(request, /*optional*/requestData) {
@@ -274,11 +292,11 @@
 							const service = this.resolveService(request),
 								rpcRequest = new httpJson.Request(request, this, method, methodArgs, request.session);
 							
-							types.extend(rpcRequest.customData, requestData);
+							types.extend(rpcRequest.data, requestData);
 							
-							setImmediate(new ipc.RequestCallback(rpcRequest, this, function setImmediateHandler() {
+							tools.callAsync(new ipc.RequestCallback(rpcRequest, this, function setImmediateHandler() {
 								service.execute(rpcRequest);
-							}));
+							}), -1);
 
 						} else {
 							this.sendResult(request);
@@ -286,6 +304,8 @@
 					}),
 					
 					execute_GET: doodad.OVERRIDE(function execute_GET(request) {
+						this.addHeaders(request);
+						
 						const args = request.url.args;
 						
 						let method = args.get('method'),
@@ -318,7 +338,7 @@
 							this.runNextCommand(request);
 							
 						} catch(ex) {
-							if (ex instanceof types.ScriptAbortedError) {
+							if (ex instanceof types.ScriptInterruptedError) {
 								throw ex;
 							}
 							this.batchCommands = [{
@@ -336,36 +356,43 @@
 						// TODO: Run batch commands in parallel ?
 						// TODO: JSON Stream
 
-						const maxRequestLength = types.get(request.mapping, 'maxRequestLength', 32500); // NOTE: Use "Infinity" for no limit
-						let data = '';
+						// TODO: Parse "Content-Type" in Request
+						const contentType = (request.requestHeaders['content-type'] || '');
+						if (contentType.split(';')[0].trim() !== 'application/json') {
+							request.respondWithStatus(types.HttpStatus.UnsupportedMediaType);
+						};
+						
+						this.addHeaders(request);
+						
+						const maxRequestLength = types.get(request.route, 'maxRequestLength', 32500); // NOTE: Use "Infinity" for no limit
+						let json = '';
 							
-						request.startBodyTransfer({callbackObj: this, callback: function onBodyHandler(ev) {
-							ev.preventDefault();
-							if (ev.data.raw === io.EOF) {
+						request.startBodyTransfer({text: true, callbackObj: this, callback: function onBodyHandler(data) {
+							if (data.raw === io.EOF) {
 								try {
-									data = JSON.parse(data);
+									json = JSON.parse(json);
 								} catch(ex) {
 									throw new httpJson.Error(httpJson.ErrorCodes.ParseError, "Parse error.", ex);
 								};
 								let isBatch = true;
-								if (!types.isArray(data)) {
-									data = [data];
+								if (!types.isArray(json)) {
+									json = [json];
 									isBatch = false;
 								};
-								this.batchCommands = data;
+								this.batchCommands = json;
 								this.currentCommand = -1;
 								this.isBatch = isBatch;
 								this.runNextCommand(request);
 							} else {
-								const value = ev.data.valueOf();
-								if (data.length + value.length > maxRequestLength) {
+								const value = data.valueOf();
+								if (json.length + value.length > maxRequestLength) {
 									throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "Request exceed maximum permitted length.");
 								};
-								data += value;
+								json += value;
 							};
 						}});
 					}),
-				})));
+				}));
 
 
 			},
