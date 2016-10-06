@@ -1,6 +1,6 @@
 {
   "name": "doodad-js-http_jsonrpc",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "stage": "a",
   "description": "JSON-RPC for Doodad's HTTP server (alpha)",
   "files": [
@@ -13,5 +13,13 @@
     "server",
     "rpc"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/doodadjs/doodad-js-http_jsonrpc.git"
+  },
+  "bugs": {
+    "url": "https://github.com/doodadjs/doodad-js-http_jsonrpc/issues",
+    "email": "doodadjs@gmail.com"
+  },
   "tonicExampleFilename": "tonic.js"
 }

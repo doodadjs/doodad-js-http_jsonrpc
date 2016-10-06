@@ -1,8 +1,9 @@
+//! BEGIN_MODULE()
+
 //! REPLACE_BY("// Copyright 2016 Claude Petit, licensed under Apache License version 2.0\n", true)
-// dOOdad - Object-oriented programming framework
+// doodad-js - Object-oriented programming framework
 // File: Server_Http_JsonRpc.js - Server tools
-// Project home: https://sourceforge.net/projects/doodad-js/
-// Trunk: svn checkout svn://svn.code.sf.net/p/doodad-js/code/trunk doodad-js-code
+// Project home: https://github.com/doodadjs/
 // Author: Claude Petit, Quebec city
 // Contact: doodadjs [at] gmail.com
 // Note: I'm still in alpha-beta stage, so expect to find some bugs or incomplete parts !
@@ -23,26 +24,11 @@
 //	limitations under the License.
 //! END_REPLACE()
 
-(function() {
-	const global = this;
-
-	var exports = {};
-	
-	//! BEGIN_REMOVE()
-	if ((typeof process === 'object') && (typeof module === 'object')) {
-	//! END_REMOVE()
-		//! IF_DEF("serverSide")
-			module.exports = exports;
-		//! END_IF()
-	//! BEGIN_REMOVE()
-	};
-	//! END_REMOVE()
-	
-	exports.add = function add(DD_MODULES) {
+module.exports = {
+	add: function add(DD_MODULES) {
 		DD_MODULES = (DD_MODULES || {});
 		DD_MODULES['Doodad.Server.Http.JsonRpc'] = {
-			version: /*! REPLACE_BY(TO_SOURCE(VERSION(MANIFEST("name")))) */ null /*! END_REPLACE() */,
-
+			version: /*! REPLACE_BY(TO_SOURCE(VERSION(MANIFEST("name")))) */ null /*! END_REPLACE()*/,
 			create: function create(root, /*optional*/_options, _shared) {
 				"use strict";
 
@@ -66,16 +52,16 @@
 
 					
 				// Source: http://www.jsonrpc.org/specification
-				httpJson.ErrorCodes = types.freezeObject({
+				httpJson.ErrorCodes = types.freezeObject(types.nullObject({
 					ParseError: -32700,        // Invalid JSON was received by the server. An error occurred on the server while parsing the JSON text.
 					InvalidRequest: -32600,    // The JSON sent is not a valid Request object.
 					MethodNotFound: -32601,    // The method does not exist / is not available.
 					InvalidParams: -32602,     // Invalid method parameter(s).
 					InternalError: -32603,     // Internal JSON-RPC error.
 					ServerError: -32000,       // -32000 to -32099 Reserved for implementation-defined server-errors.
-				});
+				}));
 				
-				httpJson.Error = types.createErrorType('Error', ipc.Error, function _new(code, message, /*optional*/data, /*optional*/params) {
+				httpJson.REGISTER(types.createErrorType('Error', ipc.Error, function _new(code, message, /*optional*/data, /*optional*/params) {
 					if (root.DD_ASSERT) {
 						root.DD_ASSERT(types.isInteger(code), "Invalid code.");
 						root.DD_ASSERT(types.isStringAndNotEmpty(message), "Invalid message.");
@@ -84,7 +70,7 @@
 					this.code = code;
 					this.data = data;
 					return ipc.Error.call(this, message, params);
-				});
+				}));
 				httpJson.Error.prototype.pack = function pack() {
 					return {
 						code: this.code, 
@@ -107,65 +93,6 @@
 						_shared.setAttribute(this, 'httpRequest', httpRequest);
 					}),
 					
-					catchError: function catchError(ex) {
-						const request = this;
-						const max = 5; // prevents infinite loop
-						let count = 0,
-							abort = false;
-						if (request.isDestroyed()) {
-							if (types._instanceof(ex, types.ScriptAbortedError)) {
-								abort = true;
-							} else if (types._instanceof(ex, server.ScriptInterruptedError)) {
-								// Do nothing
-							} else {
-								count = max;
-							};
-						} else {
-							while (count < max) {
-								count++;
-								try {
-									//if (types._instanceof(ex, httpJson.Error)) {
-									//	request.respondWithStatus(ex.code);
-									//if (types._instanceof(ex, server.RequestClosed)) {
-									//	tools.callAsync(function() {
-									//		if (!request.isDestroyed()) {
-									//			request.destroy();
-									//		};
-									//	}, -1);
-									if (types._instanceof(ex, server.EndOfRequest)) {
-										return request.server.runNextCommand(request.httpRequest, request.data);
-									} else if (types._instanceof(ex, types.ScriptAbortedError)) {
-										abort = true;
-									} else if (types._instanceof(ex, types.ScriptInterruptedError)) {
-										request.end();
-									} else {
-										// Internal error.
-										request.respondWithError(ex);
-									};
-									break;
-								} catch(o) {
-									ex = o;
-								};
-							};
-						};
-						if (abort) {
-							throw ex;
-						} else if (count >= max) {
-							// Failed to respond with internal error.
-							try {
-								doodad.trapException(ex);
-							} catch(o) {
-								debugger;
-							};
-							try {
-								if (!request.isDestroyed()) {
-									request.destroy();
-								};
-							} catch(o) {
-							};
-						};
-					},
-
 					end: doodad.OVERRIDE(function end(/*optional*/result) {
 						if (!this.__ended) {
 							this.__ended = true;
@@ -184,7 +111,7 @@
 							throw new server.EndOfRequest();
 						};
 						this.onError(new doodad.ErrorEvent(ex));
-						this.end(ex);
+						return this.end(ex);
 					}),
 				}));
 
@@ -198,43 +125,41 @@
 					currentCommand: doodad.PUBLIC(-1),
 					isBatch: doodad.PUBLIC(false),
 					
+					__json: doodad.PROTECTED(null),
+					__current: doodad.PROTECTED(null),
+					__currentStack: doodad.PROTECTED(null),
+					__lastLevel: doodad.PROTECTED(-1),
+					__key: doodad.PROTECTED(null),
+					
 					$prepare: doodad.OVERRIDE(function $prepare(options) {
-						this._super(options);
+						options = this._super(options);
 						
 						let val;
 						
-						val = types.toInteger(types.get(options, 'maxRequestLength')) || 32500; // NOTE: Use "Infinity" for no limit
-						options.maxRequestLength = val;
+						val = types.toInteger(options.batchLimit) || 100; // NOTE: Use "Infinity" for no limit
+						options.batchLimit = val;
+
+						val = options.service;
+						if (types.isString(val)) {
+							val = namespaces.get(val);
+						};
+						root.DD_ASSERT && root.DD_ASSERT(types._implements(val, ipcMixIns.Service), "Unknown service.");
+						if (types.isType(val)) {
+							val = new val();
+							val = val.getInterface(ipcMixIns.Service);
+						};
+						options.service = val;
+
+						return options;
 					}),
 
-					resolveService: doodad.PROTECTED(function resolveService(request) {
-						let service = request.route.service;
-
-						if (types.isString(service)) {
-							service = namespaces.get(service);
-						};
-							
-						root.DD_ASSERT && root.DD_ASSERT(types._implements(service, ipcMixIns.Service), "Unknown service.");
-
-						if (types.isType(service)) {
-							service = new service();
-							service = service.getInterface(ipcMixIns.Service);
-							request.route.service = service;
-						};
-							
-						if (root.DD_ASSERT) {
-							root.DD_ASSERT(types._implements(service, ipcMixIns.Service), "Page has an invalid service.");
-						};
-						
-						return service;
-					}),
-					
-					//addHeaders: doodad.PROTECTED(function addHeaders(request, result) {
 					addHeaders: doodad.PROTECTED(function addHeaders(request) {
-						const mimeType = request.parseAccept(['application/json'])[0];
+						const mimeType = request.getAcceptables(['application/json'])[0];
+						if (!mimeType) {
+							request.response.respondWithStatus(types.HttpStatus.NotAcceptable);
+						};
 						
-						request.addHeaders({
-							//'Content-Length': result.length,
+						request.response.addHeaders({
 							'Content-Type': mimeType.name,
 							//'Content-Disposition': 'inline',
 							//'Last-Modified': dates.strftime('%a, %d %b %Y %H:%M:%S GMT', new Date(), __Internal__.enUSLocale, true), // ex.:   Fri, 10 Jul 2015 03:16:55 GMT
@@ -243,76 +168,84 @@
 					
 					parseResult: doodad.PROTECTED(function parseResult(result, requestId) {
 						if (types.isError(result)) {
-							if (result instanceof httpJson.Error) {
+							if (result.critical) {
+								throw ex; // Must always throw critical errors
+							} else if (result instanceof httpJson.Error) {
 								result = result.pack();
 							} else if (result instanceof ipc.InvalidRequest) {
-								result = {
+								result = types.nullObject({
 									code: httpJson.ErrorCodes.InvalidRequest, 
 									message: result.message,
 									data: doodad.PackedValue.$pack(result),
-								};
+								});
 							} else if (result instanceof ipc.MethodNotCallable) {
-								result = {
+								result = types.nullObject({
 									code: httpJson.ErrorCodes.MethodNotFound, 
 									message: result.message,
 									data: doodad.PackedValue.$pack(result),
-								};
+								});
 							} else if (result instanceof ipc.Error) {
-								result = {
+								result = types.nullObject({
 									code: httpJson.ErrorCodes.ServerError, 
 									message: result.message,
 									data: doodad.PackedValue.$pack(result),
-								};
+								});
 							} else {
-								result = {
+								result = types.nullObject({
 									code: httpJson.ErrorCodes.InternalError, 
 									message: result.message,
 									data: doodad.PackedValue.$pack(result),
-								};
+								});
 							};
+							return types.nullObject({
+								jsonrpc: '2.0',
+								error: result,
+								id: requestId,
+							});
 						} else {
 							result = doodad.PackedValue.$pack(result);
-						};
-						return {
-							jsonrpc: '2.0',
-							result: result,
-							id: requestId,
+							return types.nullObject({
+								jsonrpc: '2.0',
+								result: result,
+								id: requestId,
+							});
 						};
 					}),
 					
-					sendResult: doodad.PROTECTED(doodad.ASYNC(function sendResult(request) {
-						const stream = request.getResponseStream({encoding: 'utf-8'});
-						const commands = this.batchCommands;
-						let results = [];
+					sendResult: doodad.PROTECTED(doodad.ASYNC(function sendResult(request, commands) {
+						return request.response.getStream({encoding: 'utf-8'})
+							.then(function(stream) {
+								let results = [];
 							
-						for (let i = 0; i < commands.length; i++) {
-							const command = commands[i];
+								for (let i = 0; i < commands.length; i++) {
+									const command = commands[i]; // NOTE: Comes from JSON
 						
-							const requestId = types.get(command, 'id'),
-								result = types.get(command, 'result');
+									const requestId = types.get(command, 'id'),
+										result = types.get(command, 'result');
 								
-							if (!this.isNotification) {
-								results.push(this.parseResult(result, requestId));
-							};
-						};
+									if (!this.isNotification) {
+										results.push(this.parseResult(result, requestId));
+									};
+								};
 
-						if (!this.isBatch) {
-							results = results[0];
-						} else if (results.length === 0) {
-							// Server MUST NOT return an empty array. Server MUST return nothing.
-							results = null;
-						};
+								if (!this.isBatch) {
+									results = results[0];
+								} else if (results.length === 0) {
+									// Server MUST NOT return an empty array. Server MUST return nothing.
+									results = null;
+								};
 						
-						if (results) {
-							results = JSON.stringify(results);
-							return stream.writeAsync(results);
-						};
+								if (results) {
+									results = JSON.stringify(results);
+									return stream.writeAsync(results);
+								};
+							}, null, this);
 					})),
 
 					runNextCommand: doodad.PUBLIC(doodad.ASYNC(function runNextCommand(request, /*optional*/requestData) {
 						const commands = this.batchCommands;
 						if (this.currentCommand < commands.length - 1) {
-							const command = commands[++this.currentCommand];
+							const command = commands[++this.currentCommand]; // NOTE: Comes from JSON
 							
 							if (!types.isObject(command)) {
 								throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "Request must be an object.");
@@ -341,24 +274,29 @@
 								throw new httpJson.Error(httpJson.ErrorCodes.InvalidParams, "Invalid arguments.", ex);
 							};
 							
-							const service = this.resolveService(request),
+							const service = this.options.service,
 								rpcRequest = new httpJson.Request(request, this, method, methodArgs, request.session);
 							
 							types.extend(rpcRequest.data, requestData);
 							
 							return service.execute(rpcRequest)
+								.catch(function(ex) {
+									throw ex;
+								})
 								.then(function endRequestPromise(result) {
-									rpcRequest.end();
+									return rpcRequest.end();
 								})
 								.catch(rpcRequest.catchError)
 								.finally(function cleanupRequestPromise() {
-									if (!rpcRequest.isDestroyed()) {
+									const data = rpcRequest.data;
+									//if (!rpcRequest.isDestroyed()) {
 										rpcRequest.destroy();
-									};
-								});
+									//};
+									return this.runNextCommand(request, data);
+								}, this);
 
 						} else {
-							return this.sendResult(request);
+							return this.sendResult(request, this.batchCommands);
 						};
 					})),
 					
@@ -370,109 +308,172 @@
 						let method = args.get('method'),
 							methodArgs = args.get('params');
 							
-						return Promise.try(function tryGet() {
-							if (method) {
-								try {
-									method = JSON.parse(method);
-								} catch(ex) {
-									throw new httpJson.Error(httpJson.ErrorCodes.ParseError, "Invalid method name.", ex);
-								};
+						if (method) {
+							try {
+								method = JSON.parse(method);
+							} catch(ex) {
+								throw new httpJson.Error(httpJson.ErrorCodes.ParseError, "Invalid method name.", ex);
 							};
+						};
 								
-							if (methodArgs) {
-								try {
-									methodArgs = JSON.parse(methodArgs);
-								} catch(ex) {
-									throw new httpJson.Error(httpJson.ErrorCodes.ParseError, "Invalid arguments.", ex);
-								};
+						if (methodArgs) {
+							try {
+								methodArgs = JSON.parse(methodArgs);
+							} catch(ex) {
+								throw new httpJson.Error(httpJson.ErrorCodes.ParseError, "Invalid arguments.", ex);
 							};
+						};
 
-							this.batchCommands = [{
-								jsonrpc: "2.0",
-								method: method || '',
-								params: methodArgs || [],
-							}];
-							this.currentCommand = -1;
-							this.isBatch = false;
-							return this.runNextCommand(request);
-						}, this)
-						.catch(function catchGet(ex) {
-							if (ex instanceof types.ScriptInterruptedError) {
-								throw ex;
-							}
-							this.batchCommands = [{
-								jsonrpc: "2.0",
-								method: '',
-								params: [],
-								result: ex,
-							}];
-							return this.sendResult(request);
-						}, this);
+						this.batchCommands = [{
+							jsonrpc: "2.0",
+							method: method || '',
+							params: methodArgs || [],
+						}];
+						this.currentCommand = -1;
+						this.isBatch = false;
+						return this.runNextCommand(request);
+					}),
+					
+					___requestOnReady: doodad.PROTECTED(function ___requestOnReady(ev) {
+						if (!ev.prevent) {
+							ev.preventDefault();
+							
+							const request = ev.handlerData[0],
+								stream = ev.handlerData[1],
+								resolve = ev.handlerData[2],
+								reject = ev.handlerData[3];
+							
+							// TODO: More limits (like object/array/string size, max level, ...)
+							const batchLimit = this.options.batchLimit; // NOTE: Use "Infinity" for no limit
+
+							const data = ev.data;
+
+							if (data.raw === io.EOF) {
+								this.batchCommands = this.__json;
+								this.currentCommand = -1;
+								resolve(this.runNextCommand(request));
+							} else {
+								const obj = data.valueOf(),
+									value = obj.value,
+									level = obj.level,
+									mode = obj.mode,
+									isOpenClose = obj.isOpenClose,
+									Modes = obj.Modes;
+								if (this.__json) {
+									if (level > this.__lastLevel) {
+										this.__currentStack.push(this.__current);
+										if (mode === Modes.Key) {
+											this.__current = '';
+										} else {
+											if (types.isArray(this.__current)) {
+												// Always append to arrays
+												this.__key = this.__current.length;
+											};
+											if ((this.__current === this.__json) && (this.__key >= batchLimit)) {
+												throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "Batch exceed maximum permitted length.");
+											};
+											this.__current = this.__current[this.__key] = (mode === Modes.Object ? {} : (mode === Modes.Array ? [] : ''));
+										};
+									} else if (level < this.__lastLevel) {
+										var tmp = this.__current;
+										this.__current = this.__currentStack.pop();
+										if (mode === Modes.Key) {
+											this.__key = tmp;
+										} else if (mode === Modes.String) {
+											this.__current[this.__key] = tmp;
+										};
+										tmp = null;
+									};
+									if (!isOpenClose) {
+										if (mode === Modes.Key || mode === Modes.String) {
+											this.__current += value;
+										} else {
+											if (mode === Modes.Array) {
+												// Always append to arrays
+												this.__key = this.__current.length;
+											};
+											if ((this.__current === this.__json) && (this.__key >= batchLimit)) {
+												throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "Batch exceed maximum permitted length.");
+											};
+											this.__current[this.__key] = value;
+										};
+									};
+								} else {
+									if (mode === Modes.Object) {
+										this.isBatch = false;
+										this.__current = {};
+										this.__json = [this.__current];
+									} else if (mode === Modes.Array) {
+										this.__current = this.__json = [];
+									} else {
+										throw new httpJson.Error(httpJson.ErrorCodes.ParseError, "Parse error.");
+									};
+								};
+								this.__lastLevel = level;
+							};
+						};
+					}),
+					
+					___requestOnError: doodad.PROTECTED(function ___requestOnError(ev) {
+						debugger;
+
+						if (!ev.prevent) {
+							ev.preventDefault();
+							
+							const request = ev.handlerData[0],
+								stream = ev.handlerData[1],
+								resolve = ev.handlerData[2],
+								reject = ev.handlerData[3];
+							
+							stream.stopListening();
+							//stream.onError(new doodad.ErrorEvent(ev.error));
+							
+							reject(ev.error);
+						};
 					}),
 					
 					execute_POST: doodad.OVERRIDE(function execute_POST(request) {
 						// http://www.jsonrpc.org/specification
 						// TODO: Run batch commands in parallel ?
-						// TODO: JSON Stream
 
+						if (!request.hasHandler(http.JsonBodyHandler)) {
+							throw new httpJson.Error(httpJson.ErrorCodes.ParseError, "Parse error.", new types.Error("'http.JsonBodyHandler' is not loaded."));
+						};
+						
 						this.addHeaders(request);
 						
-						const maxRequestLength = request.route.maxRequestLength; // NOTE: Use "Infinity" for no limit
-						let json = '';
-						
-						return Promise.create(function transferBody(resolve, reject) {
-							request.startBodyTransfer({accept: 'application/json', encoding: 'utf-8', callbackObj: this, callback: function onBodyHandler(data) {
-								if (data.raw === io.EOF) {
-									try {
-										json = JSON.parse(json);
-										let isBatch = true;
-										if (!types.isArray(json)) {
-											json = [json];
-											isBatch = false;
-										};
-										this.batchCommands = json;
-										this.currentCommand = -1;
-										this.isBatch = isBatch;
-										resolve(this.runNextCommand(request));
-									} catch(ex) {
-										reject(new httpJson.Error(httpJson.ErrorCodes.ParseError, "Parse error.", ex));
-									};
-								} else {
-									const value = data.valueOf();
-									if (json.length + value.length > maxRequestLength) {
-										throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "Request exceed maximum permitted length.");
-									};
-									json += value;
-								};
-							}});
-						}, this);
+						this.isBatch = true;
+						this.__json = null;
+						this.__current = null;
+						this.__currentStack = [];
+						this.__lastLevel = -1;
+						this.__key = null;
+					
+						return request.getStream()
+							.thenCreate(function transferBody(stream, resolve, reject) {
+								stream.onReady.attach(this, this.___requestOnReady, null, [request, stream, resolve, reject]);
+								stream.onError.attachOnce(this, this.___requestOnError, null, [request, stream, resolve, reject]);
+								stream.listen();
+							}, this);
+					}),
+
+					execute: doodad.OVERRIDE(function execute(request) {
+						return this._super(request)
+							.catch(function(ex) {
+								return this.sendResult(request, [{
+										jsonrpc: "2.0",
+										method: '',
+										params: [],
+										result: ex,
+									}]);
+							}, this);
 					}),
 				}));
 
 
 			},
 		};
-		
 		return DD_MODULES;
-	};
-	
-	//! BEGIN_REMOVE()
-	if ((typeof process !== 'object') || (typeof module !== 'object')) {
-	//! END_REMOVE()
-		//! IF_UNDEF("serverSide")
-			// <PRB> export/import are not yet supported in browsers
-			global.DD_MODULES = exports.add(global.DD_MODULES);
-		//! END_IF()
-	//! BEGIN_REMOVE()
-	};
-	//! END_REMOVE()
-}).call(
-	//! BEGIN_REMOVE()
-	(typeof window !== 'undefined') ? window : ((typeof global !== 'undefined') ? global : this)
-	//! END_REMOVE()
-	//! IF_DEF("serverSide")
-	//! 	INJECT("global")
-	//! ELSE()
-	//! 	INJECT("window")
-	//! END_IF()
-);
+	},
+};
+//! END_MODULE()
