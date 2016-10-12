@@ -243,7 +243,7 @@ module.exports = {
 					})),
 
 					runNextCommand: doodad.PUBLIC(doodad.ASYNC(function runNextCommand(request, /*optional*/requestData) {
-						const commands = this.batchCommands;
+						const commands = this.batchCommands || [];
 						if (this.currentCommand < commands.length - 1) {
 							const command = commands[++this.currentCommand]; // NOTE: Comes from JSON
 							
@@ -296,7 +296,7 @@ module.exports = {
 								}, this);
 
 						} else {
-							return this.sendResult(request, this.batchCommands);
+							return this.sendResult(request, commands);
 						};
 					})),
 					
@@ -446,7 +446,7 @@ module.exports = {
 						this.__lastLevel = -1;
 						this.__key = null;
 					
-						return request.getStream({accept: 'application/json'})
+						return request.getStream()
 							.thenCreate(function transferBody(stream, resolve, reject) {
 								request.onEnd.attachOnce(null, function() {
 									reject(new server.EndOfRequest());
