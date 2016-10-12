@@ -415,8 +415,6 @@ module.exports = {
 					}),
 					
 					___requestOnError: doodad.PROTECTED(function ___requestOnError(ev) {
-						debugger;
-
 						if (!ev.prevent) {
 							ev.preventDefault();
 							
@@ -426,7 +424,6 @@ module.exports = {
 								reject = ev.handlerData[3];
 							
 							stream.stopListening();
-							//stream.onError(new doodad.ErrorEvent(ev.error));
 							
 							reject(ev.error);
 						};
@@ -449,8 +446,11 @@ module.exports = {
 						this.__lastLevel = -1;
 						this.__key = null;
 					
-						return request.getStream()
+						return request.getStream({accept: 'application/json'})
 							.thenCreate(function transferBody(stream, resolve, reject) {
+								request.onEnd.attachOnce(null, function() {
+									reject(new server.EndOfRequest());
+								});
 								stream.onReady.attach(this, this.___requestOnReady, null, [request, stream, resolve, reject]);
 								stream.onError.attachOnce(this, this.___requestOnError, null, [request, stream, resolve, reject]);
 								stream.listen();
