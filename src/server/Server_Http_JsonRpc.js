@@ -136,6 +136,17 @@ module.exports = {
 						
 						let val;
 						
+						// TODO: Tuneup default values
+
+						val = types.toInteger(options.maxDepth) || 10; // NOTE: Use "Infinity" for no limit
+						options.maxDepth = val;
+
+						val = types.toInteger(options.maxStringLength) || 1024 * 1024 * 1; // NOTE: Use "Infinity" for no limit
+						options.maxStringLength = val;
+
+						val = types.toInteger(options.maxArrayLength) || 1024 * 1; // NOTE: Use "Infinity" for no limit
+						options.maxArrayLength = val;
+
 						val = types.toInteger(options.batchLimit) || 100; // NOTE: Use "Infinity" for no limit
 						options.batchLimit = val;
 
@@ -343,8 +354,10 @@ module.exports = {
 								resolve = ev.handlerData[2],
 								reject = ev.handlerData[3];
 							
-							// TODO: More limits (like object/array/string size, max level, ...)
-							const batchLimit = this.options.batchLimit; // NOTE: Use "Infinity" for no limit
+							const maxDepth = this.options.maxDepth;					// NOTE: Use "Infinity" for no limit
+							const maxStringLength = this.options.maxStringLength;	// NOTE: Use "Infinity" for no limit
+							const maxArrayLength = this.options.maxArrayLength;		// NOTE: Use "Infinity" for no limit
+							const batchLimit = this.options.batchLimit;				// NOTE: Use "Infinity" for no limit
 
 							const data = ev.data;
 
@@ -358,42 +371,52 @@ module.exports = {
 									level = obj.level,
 									mode = obj.mode,
 									isOpenClose = obj.isOpenClose,
-									Modes = obj.Modes;
+									Modes = obj.Modes,
+									stack = this.__currentStack;
 								if (this.__json) {
 									if (level > this.__lastLevel) {
-										this.__currentStack.push(this.__current);
+										if (stack.length >= maxDepth) {
+											throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "JSON exceed maximum permitted depth level.");
+										};
+										stack[stack.length] = this.__current;
 										if (mode === Modes.Key) {
 											this.__current = '';
 										} else {
 											if (types.isArray(this.__current)) {
 												// Always append to arrays
 												this.__key = this.__current.length;
-											};
-											if ((this.__current === this.__json) && (this.__key >= batchLimit)) {
-												throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "Batch exceed maximum permitted length.");
+												if ((this.__current === this.__json) && (this.__key >= batchLimit)) {
+													throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "Batch exceed maximum permitted length.");
+												} else if (this.__key >= maxArrayLength) {
+													throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "JSON array exceed maximum permitted length.");
+												};
 											};
 											this.__current = this.__current[this.__key] = (mode === Modes.Object ? {} : (mode === Modes.Array ? [] : ''));
 										};
 									} else if (level < this.__lastLevel) {
-										var tmp = this.__current;
-										this.__current = this.__currentStack.pop();
+										const tmp = this.__current;
+										this.__current = stack.pop();
 										if (mode === Modes.Key) {
 											this.__key = tmp;
 										} else if (mode === Modes.String) {
 											this.__current[this.__key] = tmp;
 										};
-										tmp = null;
 									};
 									if (!isOpenClose) {
 										if (mode === Modes.Key || mode === Modes.String) {
+											if (this.__current.length + value.length > maxStringLength) {
+												throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "JSON key/string value exceed maximum permitted length.");
+											};
 											this.__current += value;
 										} else {
 											if (mode === Modes.Array) {
 												// Always append to arrays
 												this.__key = this.__current.length;
-											};
-											if ((this.__current === this.__json) && (this.__key >= batchLimit)) {
-												throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "Batch exceed maximum permitted length.");
+												if ((this.__current === this.__json) && (this.__key >= batchLimit)) {
+													throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "Batch exceed maximum permitted length.");
+												} else if (this.__key >= maxArrayLength) {
+													throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "JSON array exceed maximum permitted length.");
+												};
 											};
 											this.__current[this.__key] = value;
 										};
