@@ -1,8 +1,7 @@
 {
   "name": "doodad-js-http_jsonrpc",
-  "version": "0.8.0",
-  "stage": "a",
   "description": "JSON-RPC for Doodad's HTTP server (alpha)",
+  "version": "0.0.0",
   "files": [
 	"tonic.js"
   ],
