@@ -345,15 +345,15 @@ module.exports = {
 						return this.runNextCommand(request);
 					}),
 					
-					___requestOnReady: doodad.PROTECTED(function ___requestOnReady(ev) {
-						ev.preventDefault();
-							
+					__onStreamReady: doodad.PROTECTED(function __onStreamReady(ev) {
 						const maxDepth = this.options.maxDepth;					// NOTE: Use "Infinity" for no limit
 						const maxStringLength = this.options.maxStringLength;	// NOTE: Use "Infinity" for no limit
 						const maxArrayLength = this.options.maxArrayLength;		// NOTE: Use "Infinity" for no limit
 						const batchLimit = this.options.batchLimit;				// NOTE: Use "Infinity" for no limit
 
 						const data = ev.data;
+
+						ev.preventDefault();
 
 						if (data.raw === io.EOF) {
 							this.batchCommands = this.__json;
@@ -434,6 +434,8 @@ module.exports = {
 						// http://www.jsonrpc.org/specification
 						// TODO: Run batch commands in parallel ?
 
+						const Promise = types.getPromise();
+
 						if (!request.hasHandler(http.JsonBodyHandler)) {
 							throw new httpJson.Error(httpJson.ErrorCodes.ParseError, "Parse error.", new types.Error("'http.JsonBodyHandler' is not loaded."));
 						};
@@ -449,22 +451,27 @@ module.exports = {
 					
 						return request.getStream()
 							.then(function transferBody(stream) {
-								const __onReadyHook = function onReadyHook() {
+								return Promise.create(function onReadyHook(resolve, reject) {
+									let readyCb, errorCb;
+									stream.onReady.attach(this, readyCb = function(ev) {
+										const eof = this.__onStreamReady(ev);
+										if (eof) {
+											stream.onReady.detach(this, readyCb);
+											stream.onError.detach(this, errorCb);
+											resolve();
+										};
+									});
+									stream.onError.attachOnce(this, errorCb = function(err) {
+										stream.onReady.detach(this, readyCb);
+										reject(err);
+									});
 									stream.listen();
-									const promise = stream.onReady
-										.promise(this.___requestOnReady, this)
-										.then(function(eof) {
-											if (eof) {
-												return this.runNextCommand(request);
-											} else {
-												return __onReadyHook.call(this);
-											};
-										}, null, this);
-									stream.flush({count: 1});
-									return promise;
-								};
-								return __onReadyHook.call(this);
+									stream.flush();
+								}, this);
 							}, null, this)
+							.then(function() {
+								return this.runNextCommand(request);
+							}, null, this);
 					}),
 
 					execute: doodad.OVERRIDE(function execute(request) {
