@@ -52,14 +52,14 @@ module.exports = {
 
 					
 				// Source: http://www.jsonrpc.org/specification
-				httpJson.ErrorCodes = types.freezeObject(types.nullObject({
+				httpJson.ADD('ErrorCodes', types.freezeObject(types.nullObject({
 					ParseError: -32700,        // Invalid JSON was received by the server. An error occurred on the server while parsing the JSON text.
 					InvalidRequest: -32600,    // The JSON sent is not a valid Request object.
 					MethodNotFound: -32601,    // The method does not exist / is not available.
 					InvalidParams: -32602,     // Invalid method parameter(s).
 					InternalError: -32603,     // Internal JSON-RPC error.
 					ServerError: -32000,       // -32000 to -32099 Reserved for implementation-defined server-errors.
-				}));
+				})));
 				
 				httpJson.REGISTER(types.createErrorType('Error', ipc.Error, function _new(code, message, /*optional*/data, /*optional*/params) {
 					if (root.DD_ASSERT) {
