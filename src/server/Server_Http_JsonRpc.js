@@ -67,9 +67,9 @@ module.exports = {
 						root.DD_ASSERT(types.isStringAndNotEmpty(message), "Invalid message.");
 						root.DD_ASSERT(types.isSerializable(data), "Invalid data.");
 					};
-					this.code = code;
-					this.data = data;
-					return ipc.Error.call(this, message, params);
+					this._this.code = code;
+					this._this.data = data;
+					this._super.call(this._this, message, params);
 				}));
 				httpJson.Error.prototype.pack = function pack() {
 					return {
