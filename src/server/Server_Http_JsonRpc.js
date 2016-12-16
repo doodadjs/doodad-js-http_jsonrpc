@@ -82,6 +82,7 @@ module.exports = {
 				httpJson.REGISTER(ipc.Request.$extend(
 				{
 					$TYPE_NAME: 'Request',
+					$TYPE_UUID: '' /*! INJECT('+' + TO_SOURCE(UUID('Request')), true) */,
 					
 					httpRequest: doodad.PUBLIC(doodad.READ_ONLY(  null  )),
 					
@@ -120,6 +121,7 @@ module.exports = {
 									ipcInterfaces.IServer,
 				{
 					$TYPE_NAME: 'Page',
+					$TYPE_UUID: '' /*! INJECT('+' + TO_SOURCE(UUID('Page')), true) */,
 
 					batchCommands: doodad.PUBLIC(null),
 					currentCommand: doodad.PUBLIC(-1),
