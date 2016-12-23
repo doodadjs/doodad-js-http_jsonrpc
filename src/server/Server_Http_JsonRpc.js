@@ -69,7 +69,7 @@ module.exports = {
 					};
 					this._this.code = code;
 					this._this.data = data;
-					this._super.call(this._this, message, params);
+					this.superArgs = [message, params];
 				}));
 				httpJson.Error.prototype.pack = function pack() {
 					return {
