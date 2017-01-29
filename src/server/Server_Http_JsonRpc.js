@@ -302,9 +302,7 @@ module.exports = {
 								.catch(rpcRequest.catchError)
 								.finally(function cleanupRequestPromise() {
 									const data = rpcRequest.data;
-									//if (!rpcRequest.isDestroyed()) {
-										rpcRequest.destroy();
-									//};
+									types.DESTROY(rpcRequest);
 									return this.runNextCommand(request, data);
 								}, this);
 
