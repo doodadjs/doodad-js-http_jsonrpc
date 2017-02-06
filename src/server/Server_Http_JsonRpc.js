@@ -45,6 +45,11 @@ module.exports = {
 					ipcInterfaces = ipc.Interfaces,
 					ipcMixIns = ipc.MixIns,
 					httpJson = http.JsonRpc;
+
+
+				types.complete(_shared.Natives, {
+					windowJsonStringify: JSON.stringify,
+				});
 					
 					
 				//const __Internal__ = {
@@ -249,7 +254,7 @@ module.exports = {
 								};
 						
 								if (results) {
-									results = JSON.stringify(results);
+									results = _shared.Natives.windowJsonStringify(results);
 									return stream.writeAsync(results);
 								};
 							}, null, this);
@@ -293,9 +298,6 @@ module.exports = {
 							types.extend(rpcRequest.data, requestData);
 							
 							return service.execute(rpcRequest)
-								.catch(function(ex) {
-									throw ex;
-								})
 								.then(function endRequestPromise(result) {
 									return rpcRequest.end();
 								})
