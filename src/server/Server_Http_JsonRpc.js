@@ -138,8 +138,8 @@ module.exports = {
 					__lastLevel: doodad.PROTECTED(-1),
 					__key: doodad.PROTECTED(null),
 					
-					$prepare: doodad.OVERRIDE(function $prepare(options) {
-						options = this._super(options);
+					$prepare: doodad.OVERRIDE(function $prepare(options, /*optional*/parentOptions) {
+						options = this._super(options, parentOptions);
 						
 						let val;
 						
