@@ -116,7 +116,9 @@ module.exports = {
 						if (this.__ended) {
 							throw new server.EndOfRequest();
 						};
-						this.onError(new doodad.ErrorEvent(ex));
+						const ev = new doodad.ErrorEvent(ex);
+						ev.preventDefault();
+						this.onError(ev);
 						return this.end(ex);
 					}),
 				}));
