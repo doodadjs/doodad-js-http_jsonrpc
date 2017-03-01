@@ -465,9 +465,9 @@ module.exports = {
 											resolve();
 										};
 									});
-									stream.onError.attachOnce(this, errorCb = function(err) {
+									stream.onError.attachOnce(this, errorCb = function(ev) {
 										stream.onReady.detach(this, readyCb);
-										reject(err);
+										reject(ev.error);
 									});
 									stream.listen();
 									stream.flush();
