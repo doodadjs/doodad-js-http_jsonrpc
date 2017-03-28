@@ -349,7 +349,7 @@ module.exports = {
 						return this.runNextCommand(request);
 					}),
 					
-					__onStreamReady: doodad.PROTECTED(function __onStreamReady(ev) {
+					__onStreamData: doodad.PROTECTED(function __onStreamData(ev) {
 						const maxDepth = this.options.maxDepth;					// NOTE: Use "Infinity" for no limit
 						const maxStringLength = this.options.maxStringLength;	// NOTE: Use "Infinity" for no limit
 						const maxArrayLength = this.options.maxArrayLength;		// NOTE: Use "Infinity" for no limit
@@ -362,75 +362,87 @@ module.exports = {
 						if (data.raw === io.EOF) {
 							this.batchCommands = this.__json;
 							this.currentCommand = -1;
-							return true;
+
 						} else {
-							const obj = data.valueOf(),
-								value = obj.value,
-								level = obj.level,
-								mode = obj.mode,
-								isOpenClose = obj.isOpenClose,
-								Modes = obj.Modes,
-								stack = this.__currentStack;
-							if (this.__json) {
-								if (level > this.__lastLevel) {
-									if (stack.length >= maxDepth) {
-										throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "JSON exceed maximum permitted depth level.");
-									};
-									stack[stack.length] = this.__current;
-									if (mode === Modes.Key) {
-										this.__current = '';
-									} else {
-										if (types.isArray(this.__current)) {
-											// Always append to arrays
-											this.__key = this.__current.length;
-											if ((this.__current === this.__json) && (this.__key >= batchLimit)) {
-												throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "Batch exceed maximum permitted length.");
-											} else if (this.__key >= maxArrayLength) {
-												throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "JSON array exceed maximum permitted length.");
+							const buffer = data.valueOf();
+
+							if (!types.isNothing(buffer)) {
+								const Modes = buffer.Modes,
+									bufferLen = buffer.length;
+								
+								for (let i = 0; i < bufferLen; i++) {
+									const obj = buffer[i],
+										value = obj.value,
+										level = obj.level,
+										mode = obj.mode,
+										isOpenClose = obj.isOpenClose,
+										stack = this.__currentStack;
+
+									if (this.__json) {
+										if (level > this.__lastLevel) {
+											if (stack.length >= maxDepth) {
+												throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "JSON exceed maximum permitted depth level.");
+											};
+											stack[stack.length] = this.__current;
+											if (mode === Modes.Key) {
+												this.__current = '';
+											} else {
+												if (types.isArray(this.__current)) {
+													// Always append to arrays
+													this.__key = this.__current.length;
+													if ((this.__current === this.__json) && (this.__key >= batchLimit)) {
+														throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "Batch exceed maximum permitted length.");
+													} else if (this.__key >= maxArrayLength) {
+														throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "JSON array exceed maximum permitted length.");
+													};
+												};
+												this.__current = this.__current[this.__key] = (mode === Modes.Object ? {} : (mode === Modes.Array ? [] : ''));
+											};
+										} else if (level < this.__lastLevel) {
+											const tmp = this.__current;
+											this.__current = stack.pop();
+											if (mode === Modes.Key) {
+												this.__key = tmp;
+											} else if (mode === Modes.String) {
+												this.__current[this.__key] = tmp;
 											};
 										};
-										this.__current = this.__current[this.__key] = (mode === Modes.Object ? {} : (mode === Modes.Array ? [] : ''));
-									};
-								} else if (level < this.__lastLevel) {
-									const tmp = this.__current;
-									this.__current = stack.pop();
-									if (mode === Modes.Key) {
-										this.__key = tmp;
-									} else if (mode === Modes.String) {
-										this.__current[this.__key] = tmp;
-									};
-								};
-								if (!isOpenClose) {
-									if (mode === Modes.Key || mode === Modes.String) {
-										if (this.__current.length + value.length > maxStringLength) {
-											throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "JSON key/string value exceed maximum permitted length.");
-										};
-										this.__current += value;
-									} else {
-										if (mode === Modes.Array) {
-											// Always append to arrays
-											this.__key = this.__current.length;
-											if ((this.__current === this.__json) && (this.__key >= batchLimit)) {
-												throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "Batch exceed maximum permitted length.");
-											} else if (this.__key >= maxArrayLength) {
-												throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "JSON array exceed maximum permitted length.");
+										if (!isOpenClose) {
+											if (mode === Modes.Key || mode === Modes.String) {
+												if (this.__current.length + value.length > maxStringLength) {
+													throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "JSON key/string value exceed maximum permitted length.");
+												};
+												this.__current += value;
+											} else {
+												if (mode === Modes.Array) {
+													// Always append to arrays
+													this.__key = this.__current.length;
+													if ((this.__current === this.__json) && (this.__key >= batchLimit)) {
+														throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "Batch exceed maximum permitted length.");
+													} else if (this.__key >= maxArrayLength) {
+														throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "JSON array exceed maximum permitted length.");
+													};
+												};
+												this.__current[this.__key] = value;
 											};
 										};
-										this.__current[this.__key] = value;
+									} else {
+										if (mode === Modes.Object) {
+											this.isBatch = false;
+											this.__current = {};
+											this.__json = [this.__current];
+										} else if (mode === Modes.Array) {
+											this.__current = this.__json = [];
+										} else {
+											throw new httpJson.Error(httpJson.ErrorCodes.ParseError, "Parse error.");
+										};
 									};
-								};
-							} else {
-								if (mode === Modes.Object) {
-									this.isBatch = false;
-									this.__current = {};
-									this.__json = [this.__current];
-								} else if (mode === Modes.Array) {
-									this.__current = this.__json = [];
-								} else {
-									throw new httpJson.Error(httpJson.ErrorCodes.ParseError, "Parse error.");
+									this.__lastLevel = level;
 								};
 							};
-							this.__lastLevel = level;
+
+							// Wait next "onData".
+							return false;
 						};
 					}),
 					
@@ -455,23 +467,7 @@ module.exports = {
 					
 						return request.getStream()
 							.then(function transferBody(stream) {
-								return Promise.create(function onReadyHook(resolve, reject) {
-									let readyCb, errorCb;
-									stream.onReady.attach(this, readyCb = function(ev) {
-										const eof = this.__onStreamReady(ev);
-										if (eof) {
-											stream.onReady.detach(this, readyCb);
-											stream.onError.detach(this, errorCb);
-											resolve();
-										};
-									});
-									stream.onError.attachOnce(this, errorCb = function(ev) {
-										stream.onReady.detach(this, readyCb);
-										reject(ev.error);
-									});
-									stream.listen();
-									stream.flush();
-								}, this);
+								return stream.onData.promise(this.__onStreamData, this);
 							}, null, this)
 							.then(function() {
 								return this.runNextCommand(request);
