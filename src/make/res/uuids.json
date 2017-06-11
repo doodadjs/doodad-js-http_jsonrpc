@@ -1,4 +1,6 @@
 {
     "Request": "d4998709-90e8-4063-978a-a163a2b2c53f",
-    "Page": "3d2e9a6a-e2f0-479c-a638-33fd7fe250a5"
+    "Page": "3d2e9a6a-e2f0-479c-a638-33fd7fe250a5",
+    "ServiceIsolatedMixIn": "9b6e5c85-9697-464e-866b-5b3f743ff353",
+    "ServiceManager": "0eaea9c7-5a18-49e4-8e35-3d44a13de3f5"
 }
