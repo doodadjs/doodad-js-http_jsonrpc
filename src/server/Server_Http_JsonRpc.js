@@ -29,6 +29,7 @@ module.exports = {
 		DD_MODULES = (DD_MODULES || {});
 		DD_MODULES['Doodad.Server.Http.JsonRpc'] = {
 			version: /*! REPLACE_BY(TO_SOURCE(VERSION(MANIFEST("name")))) */ null /*! END_REPLACE()*/,
+			namespaces: ['MixIns'],
 			create: function create(root, /*optional*/_options, _shared) {
 				"use strict";
 
@@ -44,7 +45,8 @@ module.exports = {
 					ipc = server.Ipc,
 					ipcInterfaces = ipc.Interfaces,
 					ipcMixIns = ipc.MixIns,
-					httpJson = http.JsonRpc;
+					httpJson = http.JsonRpc,
+					httpJsonMixIns = httpJson.MixIns;
 
 
 				types.complete(_shared.Natives, {
@@ -84,6 +86,22 @@ module.exports = {
 					};
 				};
 				
+				// What an object must implement to be an RPC Service
+				httpJsonMixIns.REGISTER(doodad.ISOLATED(ipcMixIns.Service.$extend(
+				{
+					$TYPE_NAME: 'Service',
+					$TYPE_UUID: '' /*! INJECT('+' + TO_SOURCE(UUID('ServiceIsolatedMixIn')), true) */,
+				})));
+
+				// What an object must implement to be an RPC Service Manager
+				httpJson.REGISTER(ipc.ServiceManager.$extend(
+				{
+					$TYPE_NAME: 'ServiceManager',
+					$TYPE_UUID: '' /*! INJECT('+' + TO_SOURCE(UUID('ServiceManager')), true) */,
+
+					__serviceInterfaces: doodad.PROTECTED( httpJsonMixIns.Service ),
+				}));
+
 				httpJson.REGISTER(ipc.Request.$extend(
 				{
 					$TYPE_NAME: 'Request',
