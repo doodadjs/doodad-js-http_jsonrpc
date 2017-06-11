@@ -89,23 +89,11 @@ module.exports = {
 					$TYPE_NAME: 'Request',
 					$TYPE_UUID: '' /*! INJECT('+' + TO_SOURCE(UUID('Request')), true) */,
 					
-					httpRequest: doodad.PUBLIC(doodad.READ_ONLY(  null  )),
-					
 					__ended: doodad.PROTECTED(false),
-					
-					create: doodad.OVERRIDE(function create(httpRequest, server, method, /*optional*/args, /*optional*/session) {
-						this._super(server, method, args, session);
-						
-						_shared.setAttribute(this, 'httpRequest', httpRequest);
-					}),
 					
 					end: doodad.OVERRIDE(function end(/*optional*/result) {
 						if (!this.__ended) {
 							this.__ended = true;
-							if (this.isNotification) {
-								// Notifications must return nothing
-								result = null;
-							};
 							this.server.batchCommands[this.server.currentCommand].result = result;
 						};
 						
@@ -190,21 +178,21 @@ module.exports = {
 						if (types.isError(result)) {
 							if (result.critical) {
 								throw ex; // Must always throw critical errors
-							} else if (result instanceof httpJson.Error) {
+							} else if (types._instanceof(result, httpJson.Error)) {
 								result = result.pack();
-							} else if (result instanceof ipc.InvalidRequest) {
+							} else if (types._instanceof(result, ipc.InvalidRequest)) {
 								result = types.nullObject({
 									code: httpJson.ErrorCodes.InvalidRequest, 
 									message: result.message,
 									data: doodad.PackedValue.$pack(result),
 								});
-							} else if (result instanceof ipc.MethodNotCallable) {
+							} else if (types._instanceof(result, ipc.MethodNotCallable)) {
 								result = types.nullObject({
 									code: httpJson.ErrorCodes.MethodNotFound, 
 									message: result.message,
 									data: doodad.PackedValue.$pack(result),
 								});
-							} else if (result instanceof ipc.Error) {
+							} else if (types._instanceof(result, ipc.Error)) {
 								result = types.nullObject({
 									code: httpJson.ErrorCodes.ServerError, 
 									message: result.message,
@@ -223,10 +211,9 @@ module.exports = {
 								id: requestId,
 							});
 						} else {
-							result = doodad.PackedValue.$pack(result);
 							return types.nullObject({
 								jsonrpc: '2.0',
-								result: result,
+								result: doodad.PackedValue.$pack(result),
 								id: requestId,
 							});
 						};
@@ -243,9 +230,7 @@ module.exports = {
 									const requestId = types.get(command, 'id'),
 										result = types.get(command, 'result');
 								
-									if (!this.isNotification) {
-										results.push(this.parseResult(result, requestId));
-									};
+									results.push(this.parseResult(result, requestId));
 								};
 
 								if (!this.isBatch) {
@@ -282,26 +267,22 @@ module.exports = {
 								throw new httpJson.Error(httpJson.ErrorCodes.InvalidParams, "Invalid arguments.");
 							};
 							
-							try {
-								methodArgs = tools.map(methodArgs, function(value) {
-									if (types.isObject(value)) {
-										return doodad.PackedValue.$unpack(value);
-									} else {
-										return value;
-									};
-								});
-							} catch(ex) {
-								throw new httpJson.Error(httpJson.ErrorCodes.InvalidParams, "Invalid arguments.", ex);
+							if (!types.isNothing(methodArgs)) {
+								try {
+									methodArgs = doodad.PackedValue.$unpack(methodArgs);
+								} catch(ex) {
+									throw new httpJson.Error(httpJson.ErrorCodes.InvalidParams, "Invalid arguments.", ex);
+								};
 							};
 							
 							const service = this.options.service,
-								rpcRequest = new httpJson.Request(request, this, method, methodArgs, request.session);
+								rpcRequest = new httpJson.Request(this);
 							
 							types.extend(rpcRequest.data, requestData);
 							
-							return service.execute(rpcRequest)
+							return service.execute(rpcRequest, method, methodArgs)
 								.then(function endRequestPromise(result) {
-									return rpcRequest.end();
+									return rpcRequest.end(result);
 								})
 								.catch(rpcRequest.catchError)
 								.finally(function cleanupRequestPromise() {
