@@ -469,7 +469,7 @@ module.exports = {
 					
 						return request.getStream()
 							.then(function transferBody(stream) {
-								return stream.onData.promise(this.__onStreamData, this);
+								return stream.onData.promise(this.__onStreamData, this, _shared.SECRET);
 							}, null, this)
 							.then(function() {
 								return this.runNextCommand(request);
