@@ -49,7 +49,7 @@ module.exports = {
 					httpJsonMixIns = httpJson.MixIns;
 
 
-				types.complete(_shared.Natives, {
+				tools.complete(_shared.Natives, {
 					windowJsonStringify: JSON.stringify,
 				});
 					
@@ -59,7 +59,7 @@ module.exports = {
 
 					
 				// Source: http://www.jsonrpc.org/specification
-				httpJson.ADD('ErrorCodes', types.freezeObject(types.nullObject({
+				httpJson.ADD('ErrorCodes', types.freezeObject(tools.nullObject({
 					ParseError: -32700,        // Invalid JSON was received by the server. An error occurred on the server while parsing the JSON text.
 					InvalidRequest: -32600,    // The JSON sent is not a valid Request object.
 					MethodNotFound: -32601,    // The method does not exist / is not available.
@@ -199,37 +199,37 @@ module.exports = {
 							} else if (types._instanceof(result, httpJson.Error)) {
 								result = result.pack();
 							} else if (types._instanceof(result, ipc.InvalidRequest)) {
-								result = types.nullObject({
+								result = tools.nullObject({
 									code: httpJson.ErrorCodes.InvalidRequest, 
 									message: result.message,
 									data: doodad.PackedValue.$pack(result),
 								});
 							} else if (types._instanceof(result, ipc.MethodNotCallable)) {
-								result = types.nullObject({
+								result = tools.nullObject({
 									code: httpJson.ErrorCodes.MethodNotFound, 
 									message: result.message,
 									data: doodad.PackedValue.$pack(result),
 								});
 							} else if (types._instanceof(result, ipc.Error)) {
-								result = types.nullObject({
+								result = tools.nullObject({
 									code: httpJson.ErrorCodes.ServerError, 
 									message: result.message,
 									data: doodad.PackedValue.$pack(result),
 								});
 							} else {
-								result = types.nullObject({
+								result = tools.nullObject({
 									code: httpJson.ErrorCodes.InternalError, 
 									message: result.message,
 									data: doodad.PackedValue.$pack(result),
 								});
 							};
-							return types.nullObject({
+							return tools.nullObject({
 								jsonrpc: '2.0',
 								error: result,
 								id: requestId,
 							});
 						} else {
-							return types.nullObject({
+							return tools.nullObject({
 								jsonrpc: '2.0',
 								result: doodad.PackedValue.$pack(result),
 								id: requestId,
@@ -296,7 +296,7 @@ module.exports = {
 							const service = this.options.service,
 								rpcRequest = new httpJson.Request(this);
 							
-							types.extend(rpcRequest.data, requestData);
+							tools.extend(rpcRequest.data, requestData);
 							
 							return service.execute(rpcRequest, method, methodArgs)
 								.then(function endRequestPromise(result) {
