@@ -67,23 +67,24 @@ exports.add = function add(DD_MODULES) {
 				ServerError: -32000,       // -32000 to -32099 Reserved for implementation-defined server-errors.
 			})));
 				
-			httpJson.REGISTER(types.createErrorType('Error', ipc.Error, function _new(code, message, /*optional*/data, /*optional*/params) {
+			httpJson.REGISTER(types.createErrorType('Error', ipc.Error, function _super(code, message, /*optional*/data, /*optional*/params) {
 				if (root.DD_ASSERT) {
 					root.DD_ASSERT(types.isInteger(code), "Invalid code.");
 					root.DD_ASSERT(types.isStringAndNotEmpty(message), "Invalid message.");
 					root.DD_ASSERT(types.isSerializable(data), "Invalid data.");
 				};
-				this._this.code = code;
-				this._this.data = data;
-				this.superArgs = [message, params];
-			}));
-			httpJson.Error.prototype.pack = function pack() {
-				return {
-					code: this.code, 
-					message: this.message,
-					data: doodad.PackedValue.$pack(this.data),
-				};
-			};
+				this.code = code;
+				this.data = data;
+				return [message, params];
+			}, null, null, {
+				pack: function pack() {
+					return {
+						code: this.code, 
+						message: this.message,
+						data: doodad.PackedValue.$pack(this.data),
+					};
+				},
+			}, /*! REPLACE_BY(TO_SOURCE(UUID('Error')), true) */ null /*! END_REPLACE() */));
 				
 			// What an object must implement to be an RPC Service
 			httpJsonMixIns.REGISTER(doodad.ISOLATED(ipcMixIns.Service.$extend(
