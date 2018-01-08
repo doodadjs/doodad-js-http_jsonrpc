@@ -67,24 +67,37 @@ exports.add = function add(DD_MODULES) {
 				ServerError: -32000,       // -32000 to -32099 Reserved for implementation-defined server-errors.
 			})));
 				
-			httpJson.REGISTER(types.createErrorType('Error', ipc.Error, function _super(code, message, /*optional*/data, /*optional*/params) {
-				if (root.DD_ASSERT) {
-					root.DD_ASSERT(types.isInteger(code), "Invalid code.");
-					root.DD_ASSERT(types.isStringAndNotEmpty(message), "Invalid message.");
-					root.DD_ASSERT(types.isSerializable(data), "Invalid data.");
-				};
-				this.code = code;
-				this.data = data;
-				return [message, params];
-			}, null, null, {
-				pack: function pack() {
-					return {
-						code: this.code, 
-						message: this.message,
-						data: doodad.PackedValue.$pack(this.data),
-					};
+			httpJson.REGISTER(ipc.Error.$inherit(
+				/*typeProto*/
+				{
+					$TYPE_NAME: 'Error',
+					$TYPE_UUID: /*! REPLACE_BY(TO_SOURCE(UUID('Error')), true) */ null /*! END_REPLACE() */,
+
+					[types.ConstructorSymbol](code, message, /*optional*/data, /*optional*/params) {
+						if (root.DD_ASSERT) {
+							root.DD_ASSERT(types.isInteger(code), "Invalid code.");
+							root.DD_ASSERT(types.isStringAndNotEmpty(message), "Invalid message.");
+							root.DD_ASSERT(types.isSerializable(data), "Invalid data.");
+						};
+						this.code = code;
+						this.data = data;
+						return [message, params];
+					},
+
+					fromJSON(json) {
+						return new this(json.code, json.message, doodad.PackedValue.$unpack(json.data), null);
+					},
 				},
-			}, /*! REPLACE_BY(TO_SOURCE(UUID('Error')), true) */ null /*! END_REPLACE() */));
+				/*instanceProto*/
+				{
+					toJSON() {
+						return {
+							code: this.code, 
+							message: this.message,
+							data: doodad.PackedValue.$pack(this.data),
+						};
+					},
+				}));
 				
 			// What an object must implement to be an RPC Service
 			httpJsonMixIns.REGISTER(doodad.ISOLATED(ipcMixIns.Service.$extend(
@@ -197,7 +210,7 @@ exports.add = function add(DD_MODULES) {
 						if (result.critical) {
 							throw ex; // Must always throw critical errors
 						} else if (types._instanceof(result, httpJson.Error)) {
-							result = result.pack();
+							result = result.toJSON();
 						} else if (types._instanceof(result, ipc.InvalidRequest)) {
 							result = tools.nullObject({
 								code: httpJson.ErrorCodes.InvalidRequest, 
