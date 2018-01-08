@@ -1,5 +1,5 @@
 {
-  "name": "doodad-js-http_jsonrpc",
+  "name": "@doodad-js/http_jsonrpc",
   "description": "JSON-RPC for Doodad's HTTP server (alpha)",
   "version": "0.0.0",
   "files": [
