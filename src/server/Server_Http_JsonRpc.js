@@ -48,6 +48,9 @@ exports.add = function add(DD_MODULES) {
 				httpJsonMixIns = httpJson.MixIns;
 
 
+			/* eslint camelcase: "off" */
+
+
 			tools.complete(_shared.Natives, {
 				windowJsonStringify: JSON.stringify,
 			});
@@ -208,7 +211,7 @@ exports.add = function add(DD_MODULES) {
 				parseResult: doodad.PROTECTED(function parseResult(result, requestId) {
 					if (types.isError(result)) {
 						if (result.critical) {
-							throw ex; // Must always throw critical errors
+							throw result; // Must always throw critical errors
 						} else if (types._instanceof(result, httpJson.Error)) {
 							result = result.toJSON();
 						} else if (types._instanceof(result, ipc.InvalidRequest)) {
@@ -247,7 +250,7 @@ exports.add = function add(DD_MODULES) {
 							result: doodad.PackedValue.$pack(result),
 							id: requestId,
 						});
-					};
+					}
 				}),
 					
 				sendResult: doodad.PROTECTED(doodad.ASYNC(function sendResult(request, commands) {
@@ -275,6 +278,8 @@ exports.add = function add(DD_MODULES) {
 								results = _shared.Natives.windowJsonStringify(results);
 								return stream.writeAsync(results);
 							};
+
+							return undefined;
 						}, null, this);
 				})),
 
@@ -324,7 +329,7 @@ exports.add = function add(DD_MODULES) {
 
 					} else {
 						return this.sendResult(request, commands);
-					};
+					}
 				})),
 					
 				execute_GET: doodad.OVERRIDE(function execute_GET(request) {
@@ -459,13 +464,15 @@ exports.add = function add(DD_MODULES) {
 						// Wait next "onData".
 						return false;
 					};
+
+					return undefined;
 				}),
 					
 				execute_POST: doodad.OVERRIDE(function execute_POST(request) {
 					// http://www.jsonrpc.org/specification
 					// TODO: Run batch commands in parallel ?
 
-					const Promise = types.getPromise();
+					//const Promise = types.getPromise();
 
 					if (!request.hasHandler(http.JsonBodyHandler)) {
 						throw new httpJson.Error(httpJson.ErrorCodes.ParseError, "Parse error.", new types.Error("'http.JsonBodyHandler' is not loaded."));
