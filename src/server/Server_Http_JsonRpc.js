@@ -38,7 +38,7 @@ exports.add = function add(modules) {
 			const doodad = root.Doodad,
 				types = doodad.Types,
 				tools = doodad.Tools,
-				namespaces = doodad.Namespaces,	
+				namespaces = doodad.Namespaces,
 				io = doodad.IO,
 				//ioInterfaces = io.Interfaces,
 				server = doodad.Server,
@@ -57,12 +57,12 @@ exports.add = function add(modules) {
 			tools.complete(_shared.Natives, {
 				windowJsonStringify: JSON.stringify,
 			});
-					
-					
+
+
 			//const __Internal__ = {
 			//};
 
-					
+
 			// Source: http://www.jsonrpc.org/specification
 			httpJson.ADD('ErrorCodes', types.freezeObject(tools.nullObject({
 				ParseError: -32700,        // Invalid JSON was received by the server. An error occurred on the server while parsing the JSON text.
@@ -72,7 +72,7 @@ exports.add = function add(modules) {
 				InternalError: -32603,     // Internal JSON-RPC error.
 				ServerError: -32000,       // -32000 to -32099 Reserved for implementation-defined server-errors.
 			})));
-				
+
 			httpJson.REGISTER(ipc.Error.$inherit(
 				/*typeProto*/
 				{
@@ -98,13 +98,13 @@ exports.add = function add(modules) {
 				{
 					toJSON() {
 						return {
-							code: this.code, 
+							code: this.code,
 							message: this.message,
 							data: doodad.PackedValue.$pack(this.data),
 						};
 					},
 				}));
-				
+
 			// What an object must implement to be an RPC Service
 			httpJsonMixIns.REGISTER(doodad.ISOLATED(ipcMixIns.Service.$extend(
 			{
@@ -125,15 +125,15 @@ exports.add = function add(modules) {
 			{
 				$TYPE_NAME: 'Request',
 				$TYPE_UUID: '' /*! INJECT('+' + TO_SOURCE(UUID('Request')), true) */,
-					
+
 				__ended: doodad.PROTECTED(false),
-					
+
 				end: doodad.OVERRIDE(function end(/*optional*/result) {
 					if (!this.__ended) {
 						this.__ended = true;
 						this.server.batchCommands[this.server.currentCommand].result = result;
 					};
-						
+
 					throw new server.EndOfRequest();
 				}),
 
@@ -158,18 +158,18 @@ exports.add = function add(modules) {
 				batchCommands: doodad.PUBLIC(null),
 				currentCommand: doodad.PUBLIC(-1),
 				isBatch: doodad.PUBLIC(false),
-					
+
 				__json: doodad.PROTECTED(null),
 				__current: doodad.PROTECTED(null),
 				__currentStack: doodad.PROTECTED(null),
 				__lastLevel: doodad.PROTECTED(-1),
 				__key: doodad.PROTECTED(null),
-					
+
 				$prepare: doodad.OVERRIDE(function $prepare(options) {
 					options = this._super(options);
-						
+
 					let val;
-						
+
 					// TODO: Tuneup default values
 
 					val = types.toInteger(options.maxDepth) || 10; // NOTE: Use "Infinity" for no limit
@@ -203,14 +203,14 @@ exports.add = function add(modules) {
 					if (!mimeType) {
 						request.response.respondWithStatus(types.HttpStatus.NotAcceptable);
 					};
-						
+
 					request.response.addHeaders({
 						'Content-Type': mimeType.name,
 						//'Content-Disposition': 'inline',
 						//'Last-Modified': dates.strftime('%a, %d %b %Y %H:%M:%S GMT', new Date(), __Internal__.enUSLocale, true), // ex.:   Fri, 10 Jul 2015 03:16:55 GMT
 					});
 				}),
-					
+
 				parseResult: doodad.PROTECTED(function parseResult(result, requestId) {
 					if (types.isError(result)) {
 						if (result.critical) {
@@ -219,25 +219,25 @@ exports.add = function add(modules) {
 							result = result.toJSON();
 						} else if (types._instanceof(result, ipc.InvalidRequest)) {
 							result = tools.nullObject({
-								code: httpJson.ErrorCodes.InvalidRequest, 
+								code: httpJson.ErrorCodes.InvalidRequest,
 								message: result.message,
 								data: doodad.PackedValue.$pack(result),
 							});
 						} else if (types._instanceof(result, ipc.MethodNotCallable)) {
 							result = tools.nullObject({
-								code: httpJson.ErrorCodes.MethodNotFound, 
+								code: httpJson.ErrorCodes.MethodNotFound,
 								message: result.message,
 								data: doodad.PackedValue.$pack(result),
 							});
 						} else if (types._instanceof(result, ipc.Error)) {
 							result = tools.nullObject({
-								code: httpJson.ErrorCodes.ServerError, 
+								code: httpJson.ErrorCodes.ServerError,
 								message: result.message,
 								data: doodad.PackedValue.$pack(result),
 							});
 						} else {
 							result = tools.nullObject({
-								code: httpJson.ErrorCodes.InternalError, 
+								code: httpJson.ErrorCodes.InternalError,
 								message: result.message,
 								data: doodad.PackedValue.$pack(result),
 							});
@@ -255,18 +255,18 @@ exports.add = function add(modules) {
 						});
 					}
 				}),
-					
+
 				sendResult: doodad.PROTECTED(doodad.ASYNC(function sendResult(request, commands) {
 					return request.response.getStream({encoding: 'utf-8'})
 						.then(function(stream) {
 							let results = [];
-							
+
 							for (let i = 0; i < commands.length; i++) {
 								const command = commands[i]; // NOTE: Comes from JSON
-						
+
 								const requestId = types.get(command, 'id'),
 									result = types.get(command, 'result');
-								
+
 								results.push(this.parseResult(result, requestId));
 							};
 
@@ -276,7 +276,7 @@ exports.add = function add(modules) {
 								// Server MUST NOT return an empty array. Server MUST return nothing.
 								results = null;
 							};
-						
+
 							if (results) {
 								results = _shared.Natives.windowJsonStringify(results);
 								return stream.writeAsync(results);
@@ -290,22 +290,22 @@ exports.add = function add(modules) {
 					const commands = this.batchCommands || [];
 					if (this.currentCommand < commands.length - 1) {
 						const command = commands[++this.currentCommand]; // NOTE: Comes from JSON
-							
+
 						if (!types.isObject(command)) {
 							throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "Request must be an object.");
 						};
-							
+
 						if (types.get(command, 'jsonrpc') !== '2.0') {
 							throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "Invalid protocol version.");
 						};
-						
+
 						const method = types.get(command, 'method');
 						let methodArgs = types.get(command, 'params');
 
 						if (!types.isNothing(methodArgs) && !types.isArray(methodArgs)) {
 							throw new httpJson.Error(httpJson.ErrorCodes.InvalidParams, "Invalid arguments.");
 						};
-							
+
 						if (!types.isNothing(methodArgs)) {
 							try {
 								methodArgs = doodad.PackedValue.$unpack(methodArgs);
@@ -313,12 +313,12 @@ exports.add = function add(modules) {
 								throw new httpJson.Error(httpJson.ErrorCodes.InvalidParams, "Invalid arguments.", ex);
 							};
 						};
-							
+
 						const service = this.options.service,
 							rpcRequest = new httpJson.Request(this);
-							
+
 						tools.extend(rpcRequest.data, requestData);
-							
+
 						return service.execute(rpcRequest, method, methodArgs)
 							.then(function endRequestPromise(result) {
 								return rpcRequest.end(result);
@@ -334,15 +334,15 @@ exports.add = function add(modules) {
 						return this.sendResult(request, commands);
 					}
 				})),
-					
+
 				execute_GET: doodad.OVERRIDE(function execute_GET(request) {
 					this.addHeaders(request);
-						
+
 					const args = request.url.args;
-						
+
 					let method = args.get('method'),
 						methodArgs = args.get('params');
-							
+
 					if (method) {
 						try {
 							method = JSON.parse(method);
@@ -350,7 +350,7 @@ exports.add = function add(modules) {
 							throw new httpJson.Error(httpJson.ErrorCodes.ParseError, "Invalid method name.", ex);
 						};
 					};
-								
+
 					if (methodArgs) {
 						try {
 							methodArgs = JSON.parse(methodArgs);
@@ -368,7 +368,7 @@ exports.add = function add(modules) {
 					this.isBatch = false;
 					return this.runNextCommand(request);
 				}),
-					
+
 				__onStreamData: doodad.PROTECTED(function __onStreamData(ev) {
 					const maxDepth = this.options.maxDepth;					// NOTE: Use "Infinity" for no limit
 					const maxStringLength = this.options.maxStringLength;	// NOTE: Use "Infinity" for no limit
@@ -470,7 +470,7 @@ exports.add = function add(modules) {
 
 					return undefined;
 				}),
-					
+
 				execute_POST: doodad.OVERRIDE(function execute_POST(request) {
 					// http://www.jsonrpc.org/specification
 					// TODO: Run batch commands in parallel ?
@@ -480,16 +480,16 @@ exports.add = function add(modules) {
 					if (!request.hasHandler(http.JsonBodyHandler)) {
 						throw new httpJson.Error(httpJson.ErrorCodes.ParseError, "Parse error.", new types.Error("'http.JsonBodyHandler' is not loaded."));
 					};
-						
+
 					this.addHeaders(request);
-						
+
 					this.isBatch = true;
 					this.__json = null;
 					this.__current = null;
 					this.__currentStack = [];
 					this.__lastLevel = -1;
 					this.__key = null;
-					
+
 					return request.getStream()
 						.then(function transferBody(stream) {
 							return stream.onData.promise(this.__onStreamData, this, _shared.SECRET);
