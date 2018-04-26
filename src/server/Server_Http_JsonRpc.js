@@ -418,7 +418,9 @@ exports.add = function add(modules) {
 														throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "JSON array exceed maximum permitted length.");
 													};
 												};
-												this.__current = this.__current[this.__key] = (mode === Modes.Object ? {} : (mode === Modes.Array ? [] : ''));
+												const current = (mode === Modes.Object ? {} : (mode === Modes.Array ? [] : ''));
+												this.__current[this.__key] = current;
+												this.__current = current;
 											};
 										} else if (level < this.__lastLevel) {
 											const tmp = this.__current;
@@ -451,10 +453,13 @@ exports.add = function add(modules) {
 									} else {
 										if (mode === Modes.Object) {
 											this.isBatch = false;
-											this.__current = {};
-											this.__json = [this.__current];
+											const obj = {};
+											this.__current = obj;
+											this.__json = [obj];
 										} else if (mode === Modes.Array) {
-											this.__current = this.__json = [];
+											const ar = [];
+											this.__current = ar;
+											this.__json = ar;
 										} else {
 											throw new httpJson.Error(httpJson.ErrorCodes.ParseError, "Parse error.");
 										};
