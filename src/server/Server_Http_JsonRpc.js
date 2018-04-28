@@ -206,8 +206,8 @@ exports.add = function add(modules) {
 
 						request.response.addHeaders({
 							'Content-Type': mimeType.name,
-						//'Content-Disposition': 'inline',
-						//'Last-Modified': dates.strftime('%a, %d %b %Y %H:%M:%S GMT', new Date(), __Internal__.enUSLocale, true), // ex.:   Fri, 10 Jul 2015 03:16:55 GMT
+							//'Content-Disposition': 'inline',
+							//'Last-Modified': dates.strftime('%a, %d %b %Y %H:%M:%S GMT', new Date(), __Internal__.enUSLocale, true), // ex.:   Fri, 10 Jul 2015 03:16:55 GMT
 						});
 					}),
 
@@ -273,7 +273,7 @@ exports.add = function add(modules) {
 								if (!this.isBatch) {
 									results = results[0];
 								} else if (results.length === 0) {
-								// Server MUST NOT return an empty array. Server MUST return nothing.
+									// Server MUST NOT return an empty array. Server MUST return nothing.
 									results = null;
 								};
 
@@ -410,7 +410,7 @@ exports.add = function add(modules) {
 												this.__current = '';
 											} else {
 												if (types.isArray(this.__current)) {
-												// Always append to arrays
+													// Always append to arrays
 													this.__key = this.__current.length;
 													if ((this.__current === this.__json) && (this.__key >= batchLimit)) {
 														throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "Batch exceed maximum permitted length.");
@@ -439,7 +439,7 @@ exports.add = function add(modules) {
 												this.__current += value;
 											} else {
 												if (mode === Modes.Array) {
-												// Always append to arrays
+													// Always append to arrays
 													this.__key = this.__current.length;
 													if ((this.__current === this.__json) && (this.__key >= batchLimit)) {
 														throw new httpJson.Error(httpJson.ErrorCodes.InvalidRequest, "Batch exceed maximum permitted length.");
@@ -477,10 +477,10 @@ exports.add = function add(modules) {
 					}),
 
 					execute_POST: doodad.OVERRIDE(function execute_POST(request) {
-					// http://www.jsonrpc.org/specification
-					// TODO: Run batch commands in parallel ?
+						// http://www.jsonrpc.org/specification
+						// TODO: Run batch commands in parallel ?
 
-					//const Promise = types.getPromise();
+						//const Promise = types.getPromise();
 
 						if (!request.hasHandler(http.JsonBodyHandler)) {
 							throw new httpJson.Error(httpJson.ErrorCodes.ParseError, "Parse error.", new types.Error("'http.JsonBodyHandler' is not loaded."));
